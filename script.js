@@ -1,4 +1,4 @@
-        // --- DOM Elements ---
+// --- DOM Elements ---
         const resultsTitle = document.getElementById('results-title');
         const resultsDiv = document.getElementById('results');
         const chartCanvas = document.getElementById('savingsChart');
@@ -108,6 +108,7 @@
 
             scenarios.forEach(scenario => {
                 const scenarioInputs = JSON.parse(JSON.stringify(baseInputs));
+                let comparisonLifeExpectancy = baseInputs.lifeExpectancy;
                 switch(scenario) {
                     case 'worst':
                         scenarioInputs.annualReturn -= 0.02;
@@ -121,8 +122,8 @@
                         scenarioInputs.inflationRate -= 0.01;
                         break;
                 }
-                const simulationResult = runFullLifecycleSimulation(scenarioInputs);
-                const totalYears = scenarioInputs.lifeExpectancy - scenarioInputs.currentAge;
+                const simulationResult = runFullLifecycleSimulation(scenarioInputs, comparisonLifeExpectancy);
+                const totalYears = comparisonLifeExpectancy - scenarioInputs.currentAge;
                 const finalEstateToday = calculatePresentValue(simulationResult.finalEstate, scenarioInputs.inflationRate, totalYears);
                 results[scenario] = {
                     ...simulationResult,
@@ -174,7 +175,7 @@
         }
 
 
-        function runFullLifecycleSimulation(inputs) {
+        function runFullLifecycleSimulation(inputs, comparisonLifeExpectancy) {
             let retirementBalance = inputs.currentRetirementSavings;
             let taxableBalance = inputs.currentTaxableSavings;
             let propertyValue = inputs.primaryResidenceValue;
@@ -185,6 +186,7 @@
                 property: propertyValue
             }];
             let nestEggAtRetirement = 0;
+            let finalEstate = 0;
 
             for (let age = inputs.currentAge + 1; age <= inputs.lifeExpectancy; age++) {
                 const isPreRetirement = age <= inputs.retirementAge;
@@ -259,6 +261,10 @@
                 if (age === inputs.retirementAge) {
                     nestEggAtRetirement = totalLiquidBalance;
                 }
+
+                if (age === comparisonLifeExpectancy) {
+                    finalEstate = totalLiquidBalance + propertyValue;
+                }
                 
                 if (totalLiquidBalance < 0) {
                     for (let fillAge = age + 1; fillAge <= inputs.lifeExpectancy; fillAge++) {
@@ -269,12 +275,17 @@
                             property: propertyValue * Math.pow(1 + inputs.inflationRate, fillAge - age)
                         });
                     }
+                    if (age < comparisonLifeExpectancy) {
+                        finalEstate = 0;
+                    }
                     break;
                 }
             }
 
-            const finalLiquidEstate = Math.max(0, retirementBalance + taxableBalance);
-            const finalEstate = finalLiquidEstate + propertyValue;
+            if (inputs.lifeExpectancy >= comparisonLifeExpectancy && finalEstate === 0) {
+                 const lastYearData = yearlyData[yearlyData.length - 1];
+                 finalEstate = Math.max(0, lastYearData.retirement + lastYearData.taxable) + lastYearData.property;
+            }
 
             return { yearlyData, nestEggAtRetirement, finalEstate };
         }
