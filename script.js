@@ -1,11 +1,6 @@
-
         // --- DOM Elements ---
         const resultsTitle = document.getElementById('results-title');
         const resultsDiv = document.getElementById('results');
-        const nestEggFutureEl = document.getElementById('nestEggFuture');
-        const nestEggTodayEl = document.getElementById('nestEggToday');
-        const finalEstateFutureEl = document.getElementById('finalEstateFuture');
-        const finalEstateTodayEl = document.getElementById('finalEstateToday');
         const chartCanvas = document.getElementById('savingsChart');
         const retirementAgeSlider = document.getElementById('retirementAge');
         const retirementAgeValue = document.getElementById('retirementAgeValue');
@@ -14,7 +9,6 @@
         const form = document.getElementById('calculator-form');
         const addChildBtn = document.getElementById('addChildBtn');
         const childrenContainer = document.getElementById('children-container');
-        const scenarioControls = document.getElementById('scenario-controls');
         let savingsChart = null;
         let childCount = 0;
 
@@ -100,79 +94,58 @@
             };
         }
 
-        function performCalculation(scenarioInputs) {
-            if (Object.values(scenarioInputs).some(val => val === null || (typeof val === 'number' && isNaN(val))) || scenarioInputs.retirementAge <= scenarioInputs.currentAge || scenarioInputs.lifeExpectancy <= scenarioInputs.retirementAge) {
+        function runAllScenarios() {
+            const baseInputs = getInputs();
+            if (Object.values(baseInputs).some(val => val === null || (typeof val === 'number' && isNaN(val))) || baseInputs.retirementAge <= baseInputs.currentAge || baseInputs.lifeExpectancy <= baseInputs.retirementAge) {
                 console.error("Invalid input. Please check all fields.");
                 return;
             }
-            
-            saveInputsToCookies(); // Save base inputs on every calculation
-            const simulationResult = runFullLifecycleSimulation(scenarioInputs);
-            const nestEggAtRetirementFuture = simulationResult.nestEggAtRetirement;
-            const yearsToRetire = scenarioInputs.retirementAge - scenarioInputs.currentAge;
-            const nestEggAtRetirementToday = calculatePresentValue(nestEggAtRetirementFuture, scenarioInputs.inflationRate, yearsToRetire);
-            const finalEstateFuture = simulationResult.finalEstate;
-            const totalYears = scenarioInputs.lifeExpectancy - scenarioInputs.currentAge;
-            const finalEstateToday = calculatePresentValue(finalEstateFuture, scenarioInputs.inflationRate, totalYears);
 
-            displayResults(nestEggAtRetirementFuture, nestEggAtRetirementToday, finalEstateFuture, finalEstateToday);
-            renderChart(simulationResult.yearlyData, scenarioInputs);
-            renderDataTable(simulationResult.yearlyData, scenarioInputs);
-        }
-        
-        function runScenario(scenario) {
-            const baseInputs = getInputs();
-            const scenarioInputs = JSON.parse(JSON.stringify(baseInputs)); // Deep copy
+            saveInputsToCookies();
 
-            switch(scenario) {
-                case 'worst':
-                    scenarioInputs.annualReturn -= 0.02;
-                    scenarioInputs.postRetirementReturn -= 0.02;
-                    scenarioInputs.inflationRate += 0.015;
-                    scenarioInputs.lifeExpectancy += 5;
-                    resultsTitle.textContent = "Your Retirement Outlook (Worst Case)";
-                    break;
-                case 'best':
-                    scenarioInputs.annualReturn += 0.02;
-                    scenarioInputs.postRetirementReturn += 0.02;
-                    scenarioInputs.inflationRate -= 0.01;
-                    // Life expectancy remains the same for a better comparison
-                    resultsTitle.textContent = "Your Retirement Outlook (Best Case)";
-                    break;
-                case 'moderate':
-                default:
-                    resultsTitle.textContent = "Your Retirement Outlook (Moderate Case)";
-                    break;
-            }
-            performCalculation(scenarioInputs);
-            
-            // Update active button style
-            document.querySelectorAll('.scenario-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.scenario === scenario) {
-                    btn.classList.add('active');
+            const scenarios = ['worst', 'moderate', 'best'];
+            const results = {};
+
+            scenarios.forEach(scenario => {
+                const scenarioInputs = JSON.parse(JSON.stringify(baseInputs));
+                switch(scenario) {
+                    case 'worst':
+                        scenarioInputs.annualReturn -= 0.02;
+                        scenarioInputs.postRetirementReturn -= 0.02;
+                        scenarioInputs.inflationRate += 0.015;
+                        scenarioInputs.lifeExpectancy += 5;
+                        break;
+                    case 'best':
+                        scenarioInputs.annualReturn += 0.02;
+                        scenarioInputs.postRetirementReturn += 0.02;
+                        scenarioInputs.inflationRate -= 0.01;
+                        break;
                 }
+                const simulationResult = runFullLifecycleSimulation(scenarioInputs);
+                const totalYears = scenarioInputs.lifeExpectancy - scenarioInputs.currentAge;
+                const finalEstateToday = calculatePresentValue(simulationResult.finalEstate, scenarioInputs.inflationRate, totalYears);
+                results[scenario] = {
+                    ...simulationResult,
+                    finalEstateToday: finalEstateToday
+                };
             });
+
+            displayAllResults(results);
+            renderCombinedChart(results, baseInputs);
+            renderDataTable(results.moderate.yearlyData, baseInputs); // Still show moderate case for data table
         }
 
         // --- Event Listeners ---
-        form.addEventListener('change', () => runScenario('moderate'));
+        form.addEventListener('change', runAllScenarios);
         
         retirementAgeSlider.addEventListener('input', () => {
             retirementAgeValue.textContent = retirementAgeSlider.value;
-            runScenario('moderate');
-        });
-
-        scenarioControls.addEventListener('click', (e) => {
-            if (e.target.matches('.scenario-btn')) {
-                const scenario = e.target.dataset.scenario;
-                runScenario(scenario);
-            }
+            runAllScenarios();
         });
 
         addChildBtn.addEventListener('click', () => {
             addChild();
-            runScenario('moderate');
+            runAllScenarios();
         });
 
         function addChild() {
@@ -196,7 +169,7 @@
             childrenContainer.appendChild(childDiv);
             childDiv.querySelector('.remove-child-btn').addEventListener('click', (e) => {
                 e.target.closest('.child-cost-group').remove();
-                runScenario('moderate');
+                runAllScenarios();
             });
         }
 
@@ -310,27 +283,38 @@
             return futureValue / Math.pow(1 + rate, years);
         }
 
-        function displayResults(nestEggFuture, nestEggToday, estateFuture, estateToday) {
-            nestEggFutureEl.textContent = formatCurrency(nestEggFuture);
-            nestEggTodayEl.textContent = `${formatCurrency(nestEggToday)} (in Today's Dollars)`;
-            finalEstateFutureEl.textContent = formatCurrency(estateFuture);
-            finalEstateTodayEl.textContent = `${formatCurrency(estateToday)} (in Today's Dollars)`;
-            
-            if (estateFuture <= 0) {
-                 finalEstateFutureEl.classList.add('text-red-600');
-                 finalEstateFutureEl.classList.remove('text-green-600');
-            } else {
-                 finalEstateFutureEl.classList.add('text-green-600');
-                 finalEstateFutureEl.classList.remove('text-red-600');
-            }
+        function displayAllResults(results) {
+            Object.keys(results).forEach(scenario => {
+                const finalEstateFutureEl = document.getElementById(`finalEstateFuture-${scenario}`);
+                const finalEstateTodayEl = document.getElementById(`finalEstateToday-${scenario}`);
+                
+                finalEstateFutureEl.textContent = formatCurrency(results[scenario].finalEstate);
+                finalEstateTodayEl.textContent = `${formatCurrency(results[scenario].finalEstateToday)} (in Today's Dollars)`;
+            });
             resultsDiv.classList.add('visible');
         }
 
-        function renderChart(yearlyData, inputs) {
-            const labels = yearlyData.map(d => d.year);
-            const todayRetirement = yearlyData.map((d, i) => calculatePresentValue(d.retirement, inputs.inflationRate, i));
-            const todayTaxable = yearlyData.map((d, i) => calculatePresentValue(d.taxable, inputs.inflationRate, i));
-            const todayNetWorth = yearlyData.map((d, i) => calculatePresentValue(d.retirement + d.taxable + d.property, inputs.inflationRate, i));
+        function renderCombinedChart(results, inputs) {
+            const labels = results.moderate.yearlyData.map(d => d.year);
+            const datasets = Object.keys(results).map(scenario => {
+                const data = results[scenario].yearlyData.map((d, i) => calculatePresentValue(d.retirement + d.taxable + d.property, inputs.inflationRate, i));
+                let color;
+                switch(scenario) {
+                    case 'worst': color = '#ef4444'; break;
+                    case 'moderate': color = '#3b82f6'; break;
+                    case 'best': color = '#22c55e'; break;
+                }
+                return {
+                    label: `${scenario.charAt(0).toUpperCase() + scenario.slice(1)} Case`,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: `${color}1a`,
+                    fill: true,
+                    tension: 0.2,
+                    pointRadius: 0,
+                    borderWidth: 3,
+                };
+            });
 
             if (savingsChart) {
                 savingsChart.destroy();
@@ -380,38 +364,7 @@
                 type: 'line',
                 data: {
                     labels: labels,
-                    datasets: [
-                        {
-                            label: 'Total Net Worth',
-                            data: todayNetWorth,
-                            borderColor: '#1e3a8a',
-                            backgroundColor: 'rgba(30, 58, 138, 0.1)',
-                            fill: true,
-                            tension: 0.2,
-                            pointRadius: 0,
-                            borderWidth: 3,
-                        },
-                        {
-                            label: 'Retirement Assets',
-                            data: todayRetirement,
-                            borderColor: '#3b82f6',
-                            backgroundColor: 'transparent',
-                            fill: false,
-                            tension: 0.2,
-                            pointRadius: 0,
-                            borderDash: [5, 5],
-                        },
-                        {
-                            label: 'Liquid Assets',
-                            data: todayTaxable,
-                            borderColor: '#16a34a',
-                            backgroundColor: 'transparent',
-                            fill: false,
-                            tension: 0.2,
-                            pointRadius: 0,
-                            borderDash: [5, 5],
-                        }
-                    ]
+                    datasets: datasets
                 },
                 options: {
                     responsive: true,
@@ -430,7 +383,7 @@
                     plugins: {
                         title: {
                             display: true,
-                            text: "Net Worth Breakdown (in Today's Dollars)"
+                            text: "Net Worth Projection (in Today's Dollars)"
                         },
                         tooltip: { 
                             mode: 'index',
@@ -447,7 +400,7 @@
         
         function renderDataTable(yearlyData, inputs) {
             let tableHTML = `
-                <h3 class="text-xl font-bold text-center mb-4">Year-by-Year Projection (Today's Dollars)</h3>
+                <h3 class="text-xl font-bold text-center mb-4">Year-by-Year Projection (Moderate Case, Today's Dollars)</h3>
                 <div class="max-h-96 overflow-y-auto">
                     <table class="w-full text-sm text-left text-gray-500">
                         <thead class="text-xs text-gray-700 uppercase bg-gray-50 sticky top-0">
@@ -493,5 +446,5 @@
         // Initial page load
         window.addEventListener('DOMContentLoaded', () => {
             loadInputsFromCookies();
-            runScenario('moderate');
+            runAllScenarios();
         });

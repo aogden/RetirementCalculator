@@ -73,35 +73,26 @@
                          <div class="input-group"><label for="retirementTaxRate" class="input-label">Retirement Income Tax Rate (%)</label><input type="number" id="retirementTaxRate" value="20" class="w-full px-4 py-3 border border-gray-300 rounded-lg"></div>
                     </div>
                 </div>
-
-                <div class="mt-8 text-center">
-                     <div id="scenario-controls" class="inline-flex rounded-md shadow-sm" role="group">
-                        <button type="button" data-scenario="worst" class="scenario-btn px-6 py-3 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-l-lg hover:bg-gray-100 focus:z-10 focus:ring-2 focus:ring-blue-700">
-                            Worst Case
-                        </button>
-                        <button type="button" data-scenario="moderate" class="scenario-btn px-6 py-3 text-sm font-medium text-gray-900 bg-white border-t border-b border-gray-200 hover:bg-gray-100 focus:z-10 focus:ring-2 focus:ring-blue-700 active">
-                            Moderate Case
-                        </button>
-                        <button type="button" data-scenario="best" class="scenario-btn px-6 py-3 text-sm font-medium text-gray-900 bg-white border border-gray-200 rounded-r-md hover:bg-gray-100 focus:z-10 focus:ring-2 focus:ring-blue-700">
-                            Best Case
-                        </button>
-                    </div>
-                </div>
             </div>
 
             <!-- Results Section -->
             <div id="results" class="mt-10 result-card">
                 <h2 id="results-title" class="text-2xl font-bold text-center mb-6">Your Retirement Outlook</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-center">
-                    <div class="bg-gray-100 p-6 rounded-lg">
-                        <p class="text-gray-600 text-lg">Liquid Nest Egg at Retirement</p>
-                        <p id="nestEggFuture" class="text-3xl font-bold text-blue-600 mt-2">$0</p>
-                        <p id="nestEggToday" class="result-value-small mt-1">(in Today's Dollars)</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                    <div class="bg-red-100 p-6 rounded-lg">
+                        <p class="text-red-800 text-lg font-semibold">Worst Case</p>
+                        <p id="finalEstateFuture-worst" class="text-3xl font-bold mt-2 text-red-600">$0</p>
+                        <p id="finalEstateToday-worst" class="result-value-small mt-1">(in Today's Dollars)</p>
                     </div>
-                    <div class="bg-gray-100 p-6 rounded-lg">
-                        <p class="text-gray-600 text-lg">Projected Final Estate (incl. Property)</p>
-                        <p id="finalEstateFuture" class="text-3xl font-bold mt-2">$0</p>
-                        <p id="finalEstateToday" class="result-value-small mt-1">(in Today's Dollars)</p>
+                    <div class="bg-blue-100 p-6 rounded-lg">
+                        <p class="text-blue-800 text-lg font-semibold">Moderate Case</p>
+                        <p id="finalEstateFuture-moderate" class="text-3xl font-bold mt-2 text-blue-600">$0</p>
+                        <p id="finalEstateToday-moderate" class="result-value-small mt-1">(in Today's Dollars)</p>
+                    </div>
+                    <div class="bg-green-100 p-6 rounded-lg">
+                        <p class="text-green-800 text-lg font-semibold">Best Case</p>
+                        <p id="finalEstateFuture-best" class="text-3xl font-bold mt-2 text-green-600">$0</p>
+                        <p id="finalEstateToday-best" class="result-value-small mt-1">(in Today's Dollars)</p>
                     </div>
                 </div>
                 <div class="mt-8">
